@@ -87,6 +87,7 @@ def search_match(regex, string):
 
 def get_switch_hostname():
     reg = '.*<(.*)>$'
+    interact.send('\n')
     interact.expect(reg)
     try:
         match = search_match(reg, interact.current_output)
