@@ -12,7 +12,7 @@ ssh, customers are forced to administrate those switches via web frontend,
 which is a pain in the ass.
 
 There is however a so called "Extended CLI mode" for developers and/or advanced
-system engineers, based on the installed firmware secured with a differend
+system engineers, based on the installed firmware secured with a different
 password which gives full access to the switch configuration on the command
 line. 
 
@@ -27,7 +27,7 @@ As different switches run on different firmware and require different passwords
 or commands to get into extended cli mode / system view one can also define a
 password for each switch in a config file.
 
-It can also execute a sequence of commands read from a config file, for example
+It can also execute a sequence of commands read from a text file, for example
 if one has to define a vlan on 10 different switches, this comes in handy.
 
 Prerequisites
@@ -55,7 +55,7 @@ Connect to a HP comware switch via SSH and go into extended cli mode:
  xtdcliconf:execute_xtd_cli(): Configured switch supports XTD CLI Cmd, switch to extended cli mode with cmd: "xtd-cli-mode"
  [rz1-l2-sw100]
  [rz1-l2-sw100]
- [rz1-l2-sw100]
+ [rz1-l2-sw100] ?
  System view commands:
    aaa                      AAA configuration
    access-list              Alias for 'acl'
@@ -93,7 +93,7 @@ To execute multiple commands create a simple text file with system-view commands
 and execute them on switch via:
 
 
- ```
+```
  xtdcliconf.py --host 192.168.250.100 --user sshuser --password sshpassword --execute cmd
  transport:_log(): Connected (version 2.0, client Comware-7.1.070)
  transport:_log(): Authentication (password) successful!
@@ -107,19 +107,10 @@ and execute them on switch via:
  [rz1-l2-sw100-vlan100]name foo
  [rz1-l2-sw100-vlan100]description bar
  [rz1-l2-sw100-vlan100]
- ``` 
-
-if option ```--save``` is specified it makes sure all changes are saved before exiting the session:
-
- [rz1-l2-sw100]save
- The current configuration will be written to the device. Are you sure? [Y/N]:Y
- Please input the file name(*.cfg)[flash:/startup.cfg]
- (To leave the existing filename unchanged, press the enter key):
- flash:/startup.cfg exists, overwrite? [Y/N]:
- Before pressing ENTER you must choose 'YES' or 'NO'[Y/N]:Y
- Validating file. Please wait...
- Saved the current configuration to mainboard device successfully.
 ``` 
+
+if option ```--save``` is specified it makes sure all changes are saved to
+switch permanently before exiting the session.
 
 
 Debugging
