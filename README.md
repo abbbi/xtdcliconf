@@ -112,6 +112,36 @@ and execute them on switch via:
 if option ```--save``` is specified it makes sure all changes are saved to
 switch permanently before exiting the session.
 
+Backing up switch conifg
+------------
+
+Backing up switch config via ssh and this tool can be handy too, create a command file like:
+
+```
+screen-length disable
+display current-configuration
+quit
+```
+
+and execute it via:
+
+```
+ xtdcliconf.py --host 192.168.250.110 --user sshuser --password sshpass  --no-systemview --execute backup-config
+```
+
+it will out put the switch configuration via ssh:
+
+```
+ #
+  version 5.20.99, Release 1114
+ #
+  sysname RZ2-01-SW110
+ #
+  undo copyright-info enable
+ #
+  domain default enable system
+ [..]
+```
 
 Debugging
 ------------
