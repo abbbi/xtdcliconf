@@ -174,6 +174,7 @@ if cmds:
         with open(cmds) as cmdfile:
             for cmd in cmdfile.readlines():
                 interact.send(cmd)
+            interact.tail()
     except Exception as e:
         logging.error('Unable to find specified cmd file')
         sys.exit(1)
@@ -187,5 +188,5 @@ if args.save:
 	interact.expect('.*overwrite.*')
 	interact.send('Y')
 	interact.expect('.*Saved.*')
-else:
+elif not args.execute:
     interact.take_control()
