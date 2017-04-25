@@ -34,6 +34,7 @@ parser.add_argument("--password", help="password for switch", required=True)
 parser.add_argument("--execute", help="exec commands from file", required=False, type=str)
 parser.add_argument("--save", help="save config on swith",required=False,action="store_true")
 parser.add_argument("--shell", help="drop to shell",required=False,action="store_true")
+parser.add_argument("--no-systemview", help="do not switch to system view, stay in advanced cli mode",required=False,action="store_true")
 parser.add_argument("--verbose", help="echo interact output shell",required=False,action="store_true")
 args = parser.parse_args()
 
@@ -159,17 +160,23 @@ def execute_xtd_cli():
         except Exception as e:
             logging.error('Unable to switch to system view using specified password')
             sys.exit(1)
-        interact.send('system-view')
-        interact.expect('.*System.*[.*].*')
-        interact.send('\n')
+
+        if not args.no_systemview:
+            interact.send('system-view')
+            interact.expect('.*System.*[.*].*')
+            interact.send('\n')
 
 execute_xtd_cli()
 
 if cmds:
     logging.info('executing commands from file: %s' % cmds)
-    with open(cmds) as cmdfile:
-        for cmd in cmdfile.readlines():
-            interact.send(cmd)
+    try:
+        with open(cmds) as cmdfile:
+            for cmd in cmdfile.readlines():
+                interact.send(cmd)
+    except Exception as e:
+        logging.error('Unable to find specified cmd file')
+        sys.exit(1)
 
 if args.save:
 	interact.send('save')
