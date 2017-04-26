@@ -27,47 +27,39 @@ from paramiko_expect import SSHClientInteraction
 
 CONFIG_DIR='config'
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--host", help="hostname for switch", required=True)
-parser.add_argument("--user", help="username for switch", required=True)
-parser.add_argument("--password", help="password for switch", required=True)
-parser.add_argument("--execute", help="exec commands from file", required=False, type=str)
-parser.add_argument("--save", help="save config on swith",required=False,action="store_true")
-parser.add_argument("--shell", help="drop to shell",required=False,action="store_true")
-parser.add_argument("--no-systemview", help="do not switch to system view, stay in advanced cli mode",required=False,action="store_true")
-parser.add_argument("--verbose", help="echo interact output shell",required=False,action="store_true")
-args = parser.parse_args()
 
-host = args.host
-username = args.user
-password = args.password
-
-if args.execute:
-    cmds = args.execute
-else:
-    cmds = False
-
+def argument():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", help="hostname for switch", required=True)
+    parser.add_argument("--user", help="username for switch", required=True)
+    parser.add_argument("--password", help="password for switch", required=True)
+    parser.add_argument("--execute", help="exec commands from file", required=False, type=str)
+    parser.add_argument("--save", help="save config on swith",required=False,action="store_true")
+    parser.add_argument("--shell", help="drop to shell",required=False,action="store_true")
+    parser.add_argument("--no-systemview", help="do not switch to system view, stay in advanced cli mode",required=False,action="store_true")
+    parser.add_argument("--verbose", help="echo interact output shell",required=False,action="store_true")
+    return parser.parse_args()
 
 FORMAT="%(module)s:%(funcName)s(): %(msg)s"
 logging.basicConfig(level=logging.INFO,format=FORMAT)
 
-client = paramiko.SSHClient()
-client.load_system_host_keys()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-try:
-    client.connect (host,
-                username=username,
-                password=password,
-                pkey=None,
-                allow_agent=None,
-                look_for_keys=False,
-                timeout=5
-    )
-except Exception as e:
-    logging.error('Unable to connect switch via SSH: "%s"' % e)
-    sys.exit(1)
-
-interact = SSHClientInteraction(client, timeout=2, display=args.verbose)
+def ssh_connect():
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        client.connect (host,
+            username=username,
+            password=password,
+            pkey=None,
+            allow_agent=None,
+            look_for_keys=False,
+            timeout=5
+        )
+        return client
+    except Exception as e:
+        logging.error('Unable to connect switch via SSH: "%s"' % e)
+        sys.exit(1)
 
 class MatchNotFound(Exception):
     pass
@@ -86,7 +78,7 @@ def search_match(regex, string):
     else:
         raise MatchNotFound('Unable to find match')
 
-def get_switch_hostname():
+def get_switch_hostname(interact):
     reg = '.*<(.*)>$'
     interact.send('\n')
     interact.expect(reg)
@@ -107,15 +99,7 @@ def read_switch_config(hostname):
     else:
         return False
 
-try:
-    hostname = get_switch_hostname()
-    logging.info('Detected Switch Hostname: "%s"' % hostname)
-except HostnameNotFound as e:
-    logging.warning('Unable to find hostname')
-
-config = read_switch_config(hostname)
-
-def execute_xtd_cli():
+def execute_xtd_cli(interact,config):
     '''
         use specified cli mode cmd from existing config file,
         if config file is not existant, use default passwords
@@ -166,27 +150,56 @@ def execute_xtd_cli():
             interact.expect('.*System.*[.*].*')
             interact.send('\n')
 
-execute_xtd_cli()
 
-if cmds:
-    logging.info('executing commands from file: %s' % cmds)
+def execute_cmdfile(interact, command_file):
+    logging.info('executing commands from file: %s' % command_file)
+    with open(command_file) as cmdfile:
+        for cmd in cmdfile.readlines():
+            interact.send(cmd)
+
+    return
+
+def save_config(interact):
     try:
-        with open(cmds) as cmdfile:
-            for cmd in cmdfile.readlines():
-                interact.send(cmd)
-            interact.tail()
+        interact.send('save')
+        interact.expect('.*The current configuration will be written to the device.*')
+        interact.send('Y')
+        interact.expect('.*press the enter key.*')
+        interact.send('\n')
+        interact.expect('.*overwrite.*')
+        interact.send('Y')
+        interact.expect('.*Saved.*')
+        logging.info('Config successfully saved')
     except Exception as e:
-        logging.error('Unable to find specified cmd file')
-        sys.exit(1)
+        logging.warning('unable to save config: "%s" : "%s"' %(e, interact.current_output))
+    return
 
-if args.save:
-	interact.send('save')
-	interact.expect('.*The current configuration will be written to the device.*')
-	interact.send('Y')
-	interact.expect('.*press the enter key.*')
-	interact.send('\n')
-	interact.expect('.*overwrite.*')
-	interact.send('Y')
-	interact.expect('.*Saved.*')
-elif not args.execute:
-    interact.take_control()
+if __name__ == "__main__":
+    args = argument()
+
+    host = args.host
+    username = args.user
+    password = args.password
+
+    client = ssh_connect()
+    interact = SSHClientInteraction(client, timeout=2, display=args.verbose)
+    try:
+        hostname = get_switch_hostname(interact)
+        logging.info('Detected Switch Hostname: "%s"' % hostname)
+    except HostnameNotFound as e:
+        logging.warning('Unable to find hostname')
+
+    config = read_switch_config(hostname)
+
+    if args.no_systemview and args.save:
+        logging.warning('Saving configuration only works in systemview mode, ignoring save option')
+        args.save = False
+
+    execute_xtd_cli(interact,config)
+    if args.execute:
+        execute_cmdfile(interact,args.execute)
+    if args.save:
+        save_config(interact)
+    else:
+        interact.take_control()
+
